@@ -83,6 +83,7 @@
   <button class="btn" style="background:#667eea" onclick="setThisWeek()">This Week</button>
   <button class="btn" style="background:#48bb78" onclick="setThisMonth()">This Month</button>
   <button class="btn" style="background:#ed8936" onclick="setLast30()">Last 30 Days</button>
+  <button class="btn" style="background:#e53e3e" onclick="setLastWeek()">Last Week</button>
 </div>
 <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:-8px;padding-left:4px">
   <span style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase">Match Weekdays</span>
@@ -168,6 +169,18 @@ function setLast30() {
   const t = new Date(), s = new Date(t); s.setDate(t.getDate() - 30);
   document.getElementById('dateFrom').value = fmt(s);
   document.getElementById('dateTo').value   = fmt(t);
+  loadData();
+}
+function setLastWeek() {
+  const t = new Date();
+  // Find last Monday (the Monday of last week)
+  const dow = (t.getDay() + 6) % 7; // 0=Mon
+  const lastMon = new Date(t);
+  lastMon.setDate(t.getDate() - dow - 7);
+  const lastSun = new Date(lastMon);
+  lastSun.setDate(lastMon.getDate() + 6);
+  document.getElementById('dateFrom').value = fmt(lastMon);
+  document.getElementById('dateTo').value   = fmt(lastSun);
   loadData();
 }
 
