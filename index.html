@@ -83,13 +83,14 @@
   <button class="btn" style="background:#667eea" onclick="setThisWeek()">This Week</button>
   <button class="btn" style="background:#48bb78" onclick="setThisMonth()">This Month</button>
   <button class="btn" style="background:#ed8936" onclick="setLast30()">Last 30 Days</button>
-  <div class="toggle-wrap">
-    <span class="toggle-label">Match Weekdays</span>
-    <label class="toggle">
-      <input type="checkbox" id="matchToggle" onchange="loadData()">
-      <span class="slider"></span>
-    </label>
-  </div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:-8px;padding-left:4px">
+  <span style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase">Match Weekdays</span>
+  <label class="toggle">
+    <input type="checkbox" id="matchToggle" onchange="loadData()">
+    <span class="slider"></span>
+  </label>
+  <span id="lyBadge" style="font-size:10px;background:#f0f4ff;color:#667eea;border-radius:20px;padding:3px 10px;font-weight:700;font-family:monospace"></span>
 </div>
 
 <div id="content">
@@ -127,20 +128,26 @@ function getLYRange(from, to) {
   if (!matchWeekdays) {
     return { lyFrom: shiftYear(from, -1), lyTo: shiftYear(to, -1) };
   }
-  // How many days is the range?
+  // Span length in days
   const fromDate = new Date(from + 'T12:00:00');
   const toDate   = new Date(to   + 'T12:00:00');
   const spanDays = Math.round((toDate - fromDate) / 86400000);
-  // Shift from date to LY
+  // What weekday does 'from' fall on? (0=Mon)
+  const fromDow = (fromDate.getDay() + 6) % 7;
+  // Go to LY same approximate date
   const lyApprox = new Date(fromDate);
   lyApprox.setFullYear(fromDate.getFullYear() - 1);
-  // Find the NEXT Monday on or after that LY date
-  const dow = (lyApprox.getDay() + 6) % 7; // 0=Mon, 6=Sun
-  const lyMon = new Date(lyApprox);
-  if (dow !== 0) lyMon.setDate(lyApprox.getDate() + (7 - dow)); // advance to next Monday
-  const lyEnd = new Date(lyMon);
-  lyEnd.setDate(lyMon.getDate() + spanDays);
-  return { lyFrom: fmt(lyMon), lyTo: fmt(lyEnd) };
+  // What weekday is that in LY?
+  const lyDow = (lyApprox.getDay() + 6) % 7;
+  // Shift LY date so it lands on the same weekday as 'from'
+  const lyStart = new Date(lyApprox);
+  let diff = fromDow - lyDow;
+  if (diff > 3)  diff -= 7;  // wrap: go back
+  if (diff < -3) diff += 7;  // wrap: go forward
+  lyStart.setDate(lyApprox.getDate() + diff);
+  const lyEnd = new Date(lyStart);
+  lyEnd.setDate(lyStart.getDate() + spanDays);
+  return { lyFrom: fmt(lyStart), lyTo: fmt(lyEnd) };
 }
 
 function setThisWeek() {
@@ -211,14 +218,11 @@ async function loadData() {
       fetchDaily(lyFrom, lyTo)
     ]);
 
-    const modeLabel = matchOn
-      ? `<span class="mode-badge">📅 Matched weekdays: ${lyFrom} → ${lyTo}</span>`
-      : `<span class="mode-badge">📆 Exact -1yr: ${lyFrom} → ${lyTo}</span>`;
+    const badge = document.getElementById('lyBadge');
+    if (badge) badge.textContent = matchOn ? `📅 ${lyFrom} → ${lyTo}` : `📆 ${lyFrom} → ${lyTo}`;
 
     document.getElementById('content').innerHTML = `
-      <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
-        <span style="font-size:11px;color:#aaa;font-weight:600">LY range:</span>${modeLabel}
-      </div>
+
       <div class="columns">
         ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`, false)}
         ${renderPanel(curRows, `${curYear}`, `${from} → ${to}`, true)}
