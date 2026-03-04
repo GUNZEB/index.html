@@ -127,7 +127,19 @@ const sumVal = (rows, key) => { const v = rows.map(r=>r[key]).filter(x=>x!==null
 function getLYRange(from, to) {
   const matchWeekdays = document.getElementById('matchToggle').checked;
   if (!matchWeekdays) {
-    return { lyFrom: shiftYear(from, -1), lyTo: shiftYear(to, -1) };
+    // Exact -1yr but always align to same weekday as 'from'
+    const fromDate = new Date(from + 'T12:00:00');
+    const lyApprox = new Date(fromDate);
+    lyApprox.setFullYear(fromDate.getFullYear() - 1);
+    const fromDow = (fromDate.getDay() + 6) % 7;
+    const lyDow   = (lyApprox.getDay() + 6) % 7;
+    let diff = fromDow - lyDow;
+    if (diff > 3)  diff -= 7;
+    if (diff < -3) diff += 7;
+    lyApprox.setDate(lyApprox.getDate() + diff);
+    const spanDays = Math.round((new Date(to+'T12:00:00') - fromDate) / 86400000);
+    const lyEnd = new Date(lyApprox); lyEnd.setDate(lyApprox.getDate() + spanDays);
+    return { lyFrom: fmt(lyApprox), lyTo: fmt(lyEnd) };
   }
   // Span length in days
   const fromDate = new Date(from + 'T12:00:00');
@@ -190,13 +202,13 @@ async function fetchDaily(start, end) {
   let rows = [];
   if (start <= yest) {
     const hEnd = end <= yest ? end : yest;
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${hEnd}&daily=temperature_2m_mean,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${hEnd}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
     const j = await fetch(url).then(r => r.json());
     if (j.daily) rows = rows.concat(zipDays(j.daily));
   }
   if (end >= todayS) {
     const fStart = start >= todayS ? start : todayS;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
     const j = await fetch(url).then(r => r.json());
     if (j.daily) rows = rows.concat(zipDays(j.daily));
   }
@@ -206,11 +218,13 @@ async function fetchDaily(start, end) {
 function zipDays(d) {
   return d.time.map((dt, i) => ({
     date:   dt,
-    temp:   d.temperature_2m_mean[i],
-    precip: d.precipitation_sum[i] || 0,
-    wind:   d.windspeed_10m_max[i] || 0,
-    code:   d.weathercode[i],
-    sun:    Math.round((d.sunshine_duration[i] || 0) / 3600 * 10) / 10
+    temp:   d.temperature_2m_mean?.[i] ?? null,
+    tmax:   d.temperature_2m_max?.[i]  ?? d.temperature_2m_mean?.[i] ?? null,
+    tmin:   d.temperature_2m_min?.[i]  ?? d.temperature_2m_mean?.[i] ?? null,
+    precip: d.precipitation_sum?.[i]   || 0,
+    wind:   d.windspeed_10m_max?.[i]   || 0,
+    code:   d.weathercode?.[i]         ?? 0,
+    sun:    Math.round((d.sunshine_duration?.[i] || 0) / 3600 * 10) / 10
   }));
 }
 
@@ -269,7 +283,8 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
     return `<div class="day-card ${isToday?'today':''}">
       <div class="day-name">${DAYS[d.getDay()]}</div>
       <div class="day-emoji">${w.emoji}</div>
-      <div class="day-temp">${Math.round(r.temp)}°</div>
+      <div class="day-temp">${r.tmax !== null ? Math.round(r.tmax) : Math.round(r.temp)}°</div>
+      <div style="font-size:9px;color:${isToday?'rgba(255,255,255,0.5)':'#aaa'};font-family:monospace">${r.tmin !== null ? Math.round(r.tmin) : ''}°</div>
       <div class="day-rain">${r.precip>0?r.precip.toFixed(1)+'mm':'·'}</div>
     </div>`;
   }).join('');
@@ -282,7 +297,7 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
         <div>
           <div class="hero-temp">${Math.round(heroRow.temp)}°</div>
           <div class="hero-condition">${wmo.label}</div>
-          <div class="hero-details">💧${heroRow.precip.toFixed(1)}mm · 💨${heroRow.wind.toFixed(0)}kph · ☀️${heroRow.sun}h</div>
+          <div class="hero-details">🌡️ ${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}° / ${heroRow.tmin !== null ? Math.round(heroRow.tmin) : '—'}° · 💧${heroRow.precip.toFixed(1)}mm · 💨${heroRow.wind.toFixed(0)}kph · ☀️${heroRow.sun}h</div>
         </div>
       </div>
       <div class="day-strip" style="grid-template-columns:repeat(${cols},1fr)">${dayCards}</div>
