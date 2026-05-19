@@ -39,8 +39,10 @@
   .day-card { background: #f8fafc; border-radius: 12px; padding: 8px 4px; text-align: center; transition: transform 0.15s; }
   .day-card:hover { transform: translateY(-2px); }
   .day-card.today { background: #1a1a2e; }
-  .day-name { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #aaa; margin-bottom: 5px; }
-  .day-card.today .day-name { color: rgba(255,255,255,0.5); }
+  .day-name { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #333; margin-bottom: 2px; letter-spacing: 0.5px; }
+  .day-card.today .day-name { color: rgba(255,255,255,0.9); }
+  .day-date { font-size: 9px; font-weight: 500; color: #aaa; margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+  .day-card.today .day-date { color: rgba(255,255,255,0.5); }
   .day-emoji { font-size: 20px; margin-bottom: 4px; }
   .day-temp { font-size: 13px; font-weight: 700; color: #1a1a2e; }
   .day-card.today .day-temp { color: white; }
@@ -123,11 +125,9 @@ const shiftYear = (s, y) => { const d = new Date(s); d.setFullYear(d.getFullYear
 const avgVal = (rows, key) => { const v = rows.map(r=>r[key]).filter(x=>x!==null&&!isNaN(x)); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; };
 const sumVal = (rows, key) => { const v = rows.map(r=>r[key]).filter(x=>x!==null&&!isNaN(x)); return v.length ? v.reduce((a,b)=>a+b,0) : null; };
 
-// Get LY range: either exact -1yr or same ISO weekday week LY
 function getLYRange(from, to) {
   const matchWeekdays = document.getElementById('matchToggle').checked;
   if (!matchWeekdays) {
-    // Exact -1yr but always align to same weekday as 'from'
     const fromDate = new Date(from + 'T12:00:00');
     const lyApprox = new Date(fromDate);
     lyApprox.setFullYear(fromDate.getFullYear() - 1);
@@ -141,22 +141,17 @@ function getLYRange(from, to) {
     const lyEnd = new Date(lyApprox); lyEnd.setDate(lyApprox.getDate() + spanDays);
     return { lyFrom: fmt(lyApprox), lyTo: fmt(lyEnd) };
   }
-  // Span length in days
   const fromDate = new Date(from + 'T12:00:00');
   const toDate   = new Date(to   + 'T12:00:00');
   const spanDays = Math.round((toDate - fromDate) / 86400000);
-  // What weekday does 'from' fall on? (0=Mon)
   const fromDow = (fromDate.getDay() + 6) % 7;
-  // Go to LY same approximate date
   const lyApprox = new Date(fromDate);
   lyApprox.setFullYear(fromDate.getFullYear() - 1);
-  // What weekday is that in LY?
   const lyDow = (lyApprox.getDay() + 6) % 7;
-  // Shift LY date so it lands on the same weekday as 'from'
   const lyStart = new Date(lyApprox);
   let diff = fromDow - lyDow;
-  if (diff > 3)  diff -= 7;  // wrap: go back
-  if (diff < -3) diff += 7;  // wrap: go forward
+  if (diff > 3)  diff -= 7;
+  if (diff < -3) diff += 7;
   lyStart.setDate(lyApprox.getDate() + diff);
   const lyEnd = new Date(lyStart);
   lyEnd.setDate(lyStart.getDate() + spanDays);
@@ -185,8 +180,7 @@ function setLast30() {
 }
 function setLastWeek() {
   const t = new Date();
-  // Find last Monday (the Monday of last week)
-  const dow = (t.getDay() + 6) % 7; // 0=Mon
+  const dow = (t.getDay() + 6) % 7;
   const lastMon = new Date(t);
   lastMon.setDate(t.getDate() - dow - 7);
   const lastSun = new Date(lastMon);
@@ -249,7 +243,6 @@ async function loadData() {
     if (badge) badge.textContent = matchOn ? `📅 ${lyFrom} → ${lyTo}` : `📆 ${lyFrom} → ${lyTo}`;
 
     document.getElementById('content').innerHTML = `
-
       <div class="columns">
         ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`, false)}
         ${renderPanel(curRows, `${curYear}`, `${from} → ${to}`, true)}
@@ -280,8 +273,10 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
     const d = new Date(r.date+'T12:00:00');
     const w = WMO(r.code);
     const isToday = isCurrent && r.date === todayS;
+    const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `<div class="day-card ${isToday?'today':''}">
       <div class="day-name">${DAYS[d.getDay()]}</div>
+      <div class="day-date">${dateLabel}</div>
       <div class="day-emoji">${w.emoji}</div>
       <div class="day-temp">${r.tmax !== null ? Math.round(r.tmax) : Math.round(r.temp)}°</div>
       <div style="font-size:9px;color:${isToday?'rgba(255,255,255,0.5)':'#aaa'};font-family:monospace">${r.tmin !== null ? Math.round(r.tmin) : ''}°</div>
