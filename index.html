@@ -284,7 +284,7 @@ function renderDelta(cur, ly, unit, label, emoji) {
     </div>`;
 }
 
-function renderPanel(rows, label, rangeStr, isCurrent) {
+function renderPanel(rows, label, rangeStr, isCurrent, heroIndex = -1) {
   if (!rows.length) return `
     <div class="panel ${isCurrent ? 'current' : 'ly'}">
       <div class="panel-year">${isCurrent ? '▶' : '◀'} ${label}</div>
@@ -292,9 +292,14 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
     </div>`;
 
   const todayS = today();
-  const heroRow = isCurrent
-    ? (rows.find(r => r.date === todayS) || rows[rows.length - 1])
-    : rows[Math.floor(rows.length / 2)];
+  let heroRow;
+  if (heroIndex >= 0 && rows[heroIndex]) {
+    heroRow = rows[heroIndex]; // same relative day-of-range as "today", so LY lines up with the matched weekday
+  } else if (isCurrent) {
+    heroRow = rows.find(r => r.date === todayS) || rows[rows.length - 1];
+  } else {
+    heroRow = rows[Math.floor(rows.length / 2)];
+  }
 
   const wmo = dailyIcon(heroRow.code, heroRow.avgCloud);
   const avgT = avgVal(rows, 'temp');
@@ -366,10 +371,12 @@ async function loadData() {
     const cRain  = sumVal(curRows, 'precip'), lRain  = sumVal(lyRows, 'precip');
     const cSun   = sumVal(curRows, 'sun'),   lSun   = sumVal(lyRows, 'sun');
 
+    const todayIdx = curRows.findIndex(r => r.date === today());
+
     document.getElementById('content').innerHTML = `
       <div class="columns">
-        ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`,  false)}
-        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true)}
+        ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`,  false, todayIdx)}
+        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true, todayIdx)}
       </div>
       <div class="delta-row">
         ${renderDelta(cTemp, lTemp, '°C', 'Avg Temperature', '🌡️')}
