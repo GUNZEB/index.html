@@ -193,47 +193,54 @@ function setLast30() {
 async function fetchDaily(start, end) {
   const todayS = today();
   let rows = [];
-  let current = null; // live "right now" condition, only available from the forecast endpoint
+  let cloudMap = {}; // date -> average hourly cloud cover % for that day
 
   const yest = fmt(new Date(new Date().setDate(new Date().getDate() - 1)));
   const hEndClamp = end <= yest ? end : yest;
   if (start <= hEndClamp) {
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${hEndClamp}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${hEndClamp}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&hourly=cloudcover&timezone=${TZ}`;
     const r = await fetch(url); const j = await r.json();
     if (j.daily) rows = rows.concat(zipDays(j.daily));
+    if (j.hourly) Object.assign(cloudMap, dailyAvgCloud(j.hourly.time, j.hourly.cloudcover));
   }
 
   if (end >= todayS) {
     const fStart = start >= todayS ? start : todayS;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&hourly=cloudcover&current_weather=true&timezone=${TZ}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&hourly=cloudcover&timezone=${TZ}`;
     const r = await fetch(url); const j = await r.json();
     if (j.daily) rows = rows.concat(zipDays(j.daily));
-    if (j.current_weather) {
-      current = j.current_weather; // { temperature, weathercode, windspeed, time, ... }
-      // current_weather.time can fall mid-hour (e.g. "...T15:30"), which never
-      // exact-matches hourly.time's on-the-hour entries ("...T15:00") — match
-      // by truncating to the hour instead of a full string compare.
-      if (j.hourly && j.hourly.time) {
-        const hourKey = current.time.slice(0, 13) + ':00';
-        const idx = j.hourly.time.indexOf(hourKey);
-        if (idx !== -1) current.cloudcover = j.hourly.cloudcover[idx];
-      }
-    }
+    if (j.hourly) Object.assign(cloudMap, dailyAvgCloud(j.hourly.time, j.hourly.cloudcover));
   }
 
-  return { rows, current };
+  rows.forEach(r => { r.avgCloud = cloudMap[r.date] ?? null; });
+  return rows;
+}
+
+// Average a day's hourly cloud-cover readings, keyed by calendar date ("YYYY-MM-DD").
+function dailyAvgCloud(times, values) {
+  const sums = {}, counts = {};
+  times.forEach((t, i) => {
+    const v = values[i];
+    if (v === null || v === undefined) return;
+    const d = t.slice(0, 10);
+    sums[d] = (sums[d] || 0) + v;
+    counts[d] = (counts[d] || 0) + 1;
+  });
+  const avg = {};
+  Object.keys(sums).forEach(d => avg[d] = sums[d] / counts[d]);
+  return avg;
 }
 
 // Weathercode 0-3 only distinguishes 4 coarse sky states and tips into "overcast"
-// past ~50% cloud cover — much more eager than how Google/most apps label things.
-// For the live "now" reading we have real cloud-cover %, so use that for a
-// smoother gradient instead. Precipitation/fog/storm codes (4+) are left as-is,
-// since those aren't about cloud amount.
-function liveIcon(code, cloudcover) {
-  if (code <= 3 && cloudcover !== undefined && cloudcover !== null) {
-    if (cloudcover <= 15) return { label: 'Clear',         emoji: '☀️' };
-    if (cloudcover <= 40) return { label: 'Mostly Sunny',  emoji: '🌤️' };
-    if (cloudcover <= 70) return { label: 'Partly Cloudy', emoji: '⛅' };
+// past ~50% cloud cover — much more eager than how Google/most apps label things,
+// and a single momentary spike can skew it. Using the day's *average* cloud cover
+// instead gives a fairer read of what the day was actually like. Precipitation/fog/
+// storm codes (4+) are left as-is, since those aren't about cloud amount.
+function dailyIcon(code, avgCloud) {
+  if (code <= 3 && avgCloud !== undefined && avgCloud !== null) {
+    if (avgCloud <= 15) return { label: 'Clear',         emoji: '☀️' };
+    if (avgCloud <= 40) return { label: 'Mostly Sunny',  emoji: '🌤️' };
+    if (avgCloud <= 70) return { label: 'Partly Cloudy', emoji: '⛅' };
     return { label: 'Cloudy', emoji: '☁️' };
   }
   return WMO(code);
@@ -277,7 +284,7 @@ function renderDelta(cur, ly, unit, label, emoji) {
     </div>`;
 }
 
-function renderPanel(rows, label, rangeStr, isCurrent, current = null) {
+function renderPanel(rows, label, rangeStr, isCurrent) {
   if (!rows.length) return `
     <div class="panel ${isCurrent ? 'current' : 'ly'}">
       <div class="panel-year">${isCurrent ? '▶' : '◀'} ${label}</div>
@@ -289,21 +296,15 @@ function renderPanel(rows, label, rangeStr, isCurrent, current = null) {
     ? (rows.find(r => r.date === todayS) || rows[rows.length - 1])
     : rows[Math.floor(rows.length / 2)];
 
-  // For "today", prefer the live current_weather code/temp over the whole-day
-  // aggregate code — the daily code can reflect e.g. morning cloud even when
-  // it's sunny right now, which made today's card look more overcast than reality.
-  const heroIsLive = isCurrent && current && heroRow.date === todayS;
-  const wmo = heroIsLive ? liveIcon(current.weathercode, current.cloudcover) : WMO(heroRow.code);
-  const heroTemp = heroIsLive ? current.temperature : heroRow.temp;
-
+  const wmo = dailyIcon(heroRow.code, heroRow.avgCloud);
   const avgT = avgVal(rows, 'temp');
   const totP = sumVal(rows, 'precip');
   const totS = sumVal(rows, 'sun');
 
   const dayCards = rows.map(r => {
     const d = new Date(r.date + 'T12:00:00');
+    const w = dailyIcon(r.code, r.avgCloud);
     const isToday = isCurrent && r.date === todayS;
-    const w = (isToday && current) ? liveIcon(current.weathercode, current.cloudcover) : WMO(r.code);
     const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `
       <div class="day-card ${isToday ? 'today' : ''}">
@@ -322,7 +323,7 @@ function renderPanel(rows, label, rangeStr, isCurrent, current = null) {
       <div class="hero">
         <div class="hero-emoji">${wmo.emoji}</div>
         <div>
-          <div class="hero-temp">${Math.round(heroTemp)}°</div>
+          <div class="hero-temp">${Math.round(heroRow.temp)}°</div>
           <div class="hero-condition">${wmo.label}</div>
           <div class="hero-details">🌡️ ${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}° / ${heroRow.tmin !== null ? Math.round(heroRow.tmin) : '—'}° · 💧 ${heroRow.precip.toFixed(1)}mm · 💨 ${heroRow.wind.toFixed(0)}kph · ☀️ ${heroRow.sun}h</div>
         </div>
@@ -356,12 +357,10 @@ async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching weather data...</div>';
 
   try {
-    const [curResult, lyResult] = await Promise.all([
+    const [curRows, lyRows] = await Promise.all([
       fetchDaily(from, to),
       fetchDaily(lyFrom, lyTo)
     ]);
-    const curRows = curResult.rows, lyRows = lyResult.rows;
-    const liveNow = curResult.current;
 
     const cTemp  = avgVal(curRows, 'temp'),  lTemp  = avgVal(lyRows, 'temp');
     const cRain  = sumVal(curRows, 'precip'), lRain  = sumVal(lyRows, 'precip');
@@ -370,7 +369,7 @@ async function loadData() {
     document.getElementById('content').innerHTML = `
       <div class="columns">
         ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`,  false)}
-        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true, liveNow)}
+        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true)}
       </div>
       <div class="delta-row">
         ${renderDelta(cTemp, lTemp, '°C', 'Avg Temperature', '🌡️')}
