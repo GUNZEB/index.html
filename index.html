@@ -89,6 +89,10 @@
   <button class="btn btn-blue" onclick="setThisWeek()">This Week</button>
   <button class="btn btn-green" onclick="setThisMonth()">This Month</button>
   <button class="btn" style="background:#ed8936;color:white" onclick="setLast30()">Last 30 Days</button>
+  <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:500;color:#666">
+    <input type="checkbox" id="matchToggle" checked onchange="loadData()" />
+    Match day of week (LY)
+  </label>
 </div>
 
 <div id="content">
@@ -134,6 +138,36 @@ const shiftYear = (s, y) => {
   return fmt(d);
 };
 
+// Get last-year range: either a plain -1yr shift, or (if matchToggle is on)
+// shifted so the LY range starts on the same weekday as 'from', keeping the
+// same span length. Prevents e.g. comparing a Monday to a Sunday.
+function getLYRange(from, to) {
+  const matchWeekdays = document.getElementById('matchToggle').checked;
+  if (!matchWeekdays) {
+    return { lyFrom: shiftYear(from, -1), lyTo: shiftYear(to, -1) };
+  }
+
+  const fromDate = new Date(from + 'T12:00:00');
+  const toDate   = new Date(to   + 'T12:00:00');
+  const spanDays = Math.round((toDate - fromDate) / 86400000);
+
+  const fromDow = (fromDate.getDay() + 6) % 7; // 0=Mon
+  const lyApprox = new Date(fromDate);
+  lyApprox.setFullYear(fromDate.getFullYear() - 1);
+  const lyDow = (lyApprox.getDay() + 6) % 7;
+
+  let diff = fromDow - lyDow;
+  if (diff > 3)  diff -= 7;
+  if (diff < -3) diff += 7;
+
+  const lyStart = new Date(lyApprox);
+  lyStart.setDate(lyApprox.getDate() + diff);
+  const lyEnd = new Date(lyStart);
+  lyEnd.setDate(lyStart.getDate() + spanDays);
+
+  return { lyFrom: fmt(lyStart), lyTo: fmt(lyEnd) };
+}
+
 function setThisWeek() {
   const t = new Date(), m = new Date(t);
   m.setDate(t.getDate() - ((t.getDay() + 6) % 7));
@@ -159,6 +193,7 @@ function setLast30() {
 async function fetchDaily(start, end) {
   const todayS = today();
   let rows = [];
+  let current = null; // live "right now" condition, only available from the forecast endpoint
 
   const yest = fmt(new Date(new Date().setDate(new Date().getDate() - 1)));
   const hEndClamp = end <= yest ? end : yest;
@@ -170,12 +205,13 @@ async function fetchDaily(start, end) {
 
   if (end >= todayS) {
     const fStart = start >= todayS ? start : todayS;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&current_weather=true&timezone=${TZ}`;
     const r = await fetch(url); const j = await r.json();
     if (j.daily) rows = rows.concat(zipDays(j.daily));
+    if (j.current_weather) current = j.current_weather; // { temperature, weathercode, windspeed, time }
   }
 
-  return rows;
+  return { rows, current };
 }
 
 function zipDays(d) {
@@ -216,7 +252,7 @@ function renderDelta(cur, ly, unit, label, emoji) {
     </div>`;
 }
 
-function renderPanel(rows, label, rangeStr, isCurrent) {
+function renderPanel(rows, label, rangeStr, isCurrent, current = null) {
   if (!rows.length) return `
     <div class="panel ${isCurrent ? 'current' : 'ly'}">
       <div class="panel-year">${isCurrent ? '▶' : '◀'} ${label}</div>
@@ -228,15 +264,21 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
     ? (rows.find(r => r.date === todayS) || rows[rows.length - 1])
     : rows[Math.floor(rows.length / 2)];
 
-  const wmo = WMO(heroRow.code);
+  // For "today", prefer the live current_weather code/temp over the whole-day
+  // aggregate code — the daily code can reflect e.g. morning cloud even when
+  // it's sunny right now, which made today's card look more overcast than reality.
+  const heroIsLive = isCurrent && current && heroRow.date === todayS;
+  const wmo = WMO(heroIsLive ? current.weathercode : heroRow.code);
+  const heroTemp = heroIsLive ? current.temperature : heroRow.temp;
+
   const avgT = avgVal(rows, 'temp');
   const totP = sumVal(rows, 'precip');
   const totS = sumVal(rows, 'sun');
 
   const dayCards = rows.map(r => {
     const d = new Date(r.date + 'T12:00:00');
-    const w = WMO(r.code);
     const isToday = isCurrent && r.date === todayS;
+    const w = (isToday && current) ? WMO(current.weathercode) : WMO(r.code);
     const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `
       <div class="day-card ${isToday ? 'today' : ''}">
@@ -255,7 +297,7 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
       <div class="hero">
         <div class="hero-emoji">${wmo.emoji}</div>
         <div>
-          <div class="hero-temp">${Math.round(heroRow.temp)}°</div>
+          <div class="hero-temp">${Math.round(heroTemp)}°</div>
           <div class="hero-condition">${wmo.label}</div>
           <div class="hero-details">🌡️ ${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}° / ${heroRow.tmin !== null ? Math.round(heroRow.tmin) : '—'}° · 💧 ${heroRow.precip.toFixed(1)}mm · 💨 ${heroRow.wind.toFixed(0)}kph · ☀️ ${heroRow.sun}h</div>
         </div>
@@ -283,17 +325,18 @@ async function loadData() {
   const to   = document.getElementById('dateTo').value;
   if (!from || !to) { alert('Please select a date range.'); return; }
 
-  const lyFrom = shiftYear(from, -1);
-  const lyTo   = shiftYear(to,   -1);
+  const { lyFrom, lyTo } = getLYRange(from, to);
   const curYear = new Date(from).getFullYear();
 
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching weather data...</div>';
 
   try {
-    const [curRows, lyRows] = await Promise.all([
+    const [curResult, lyResult] = await Promise.all([
       fetchDaily(from, to),
       fetchDaily(lyFrom, lyTo)
     ]);
+    const curRows = curResult.rows, lyRows = lyResult.rows;
+    const liveNow = curResult.current;
 
     const cTemp  = avgVal(curRows, 'temp'),  lTemp  = avgVal(lyRows, 'temp');
     const cRain  = sumVal(curRows, 'precip'), lRain  = sumVal(lyRows, 'precip');
@@ -301,8 +344,8 @@ async function loadData() {
 
     document.getElementById('content').innerHTML = `
       <div class="columns">
-        ${renderPanel(lyRows,  `${curYear - 1}`, `${lyFrom} → ${lyTo}`,  false)}
-        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true)}
+        ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`,  false)}
+        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true, liveNow)}
       </div>
       <div class="delta-row">
         ${renderDelta(cTemp, lTemp, '°C', 'Avg Temperature', '🌡️')}
