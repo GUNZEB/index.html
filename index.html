@@ -8,37 +8,39 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: #f0f4f8; min-height: 100vh; padding: 24px; color: #1a1a2e; }
+
   .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .title { font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #888; }
   .location { font-size: 12px; color: #aaa; font-family: 'DM Mono', monospace; }
-  .controls { background: white; border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; gap: 14px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
-  .controls label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 1px; text-transform: uppercase; }
-  .controls input[type="date"] { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #1a1a2e; outline: none; cursor: pointer; }
-  .btn { border: none; border-radius: 8px; padding: 8px 18px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; color: white; transition: opacity 0.2s; }
+
+  .date-controls { background: white; border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; gap: 14px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+  .date-controls label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 1px; text-transform: uppercase; }
+  .date-controls input[type="date"] { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #1a1a2e; outline: none; cursor: pointer; }
+  .date-controls input[type="date"]:focus { border-color: #667eea; }
+  .btn { border: none; border-radius: 8px; padding: 8px 18px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; letter-spacing: 0.5px; }
   .btn:hover { opacity: 0.85; }
-  .toggle-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-  .toggle-label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 1px; text-transform: uppercase; }
-  .toggle { position: relative; width: 44px; height: 24px; }
-  .toggle input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; inset: 0; background: #e2e8f0; border-radius: 24px; transition: 0.3s; }
-  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
-  input:checked + .slider { background: #667eea; }
-  input:checked + .slider:before { transform: translateX(20px); }
+  .btn-dark { background: #1a1a2e; color: white; }
+  .btn-blue { background: #667eea; color: white; }
+  .btn-green { background: #48bb78; color: white; }
+
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
   @media (max-width: 700px) { .columns { grid-template-columns: 1fr; } }
+
   .panel { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
   .panel-year { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
   .panel.current .panel-year { color: #667eea; }
   .panel.ly .panel-year { color: #f093fb; }
+
   .hero { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #f0f4f8; }
   .hero-emoji { font-size: 52px; line-height: 1; }
   .hero-temp { font-size: 58px; font-weight: 800; line-height: 1; letter-spacing: -3px; }
-  .hero-condition { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .hero-condition { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 3px; margin-top: 4px; }
   .hero-details { font-size: 11px; color: #999; font-family: 'DM Mono', monospace; }
-  .day-strip { display: grid; gap: 5px; }
+
+  .day-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
   .day-card { background: #f8fafc; border-radius: 12px; padding: 8px 4px; text-align: center; transition: transform 0.15s; }
-  .day-card:hover { transform: translateY(-2px); }
-  .day-card.today { background: #1a1a2e; }
+  .day-card:hover { transform: translateY(-2px); background: #f0f4f8; }
+  .day-card.today { background: #1a1a2e; color: white; }
   .day-name { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #333; margin-bottom: 2px; letter-spacing: 0.5px; }
   .day-card.today .day-name { color: rgba(255,255,255,0.9); }
   .day-date { font-size: 9px; font-weight: 500; color: #aaa; margin-bottom: 4px; font-family: 'DM Mono', monospace; }
@@ -46,27 +48,29 @@
   .day-emoji { font-size: 20px; margin-bottom: 4px; }
   .day-temp { font-size: 13px; font-weight: 700; color: #1a1a2e; }
   .day-card.today .day-temp { color: white; }
-  .day-rain { font-size: 9px; color: #64B5F6; font-family: monospace; margin-top: 2px; }
+  .day-rain { font-size: 9px; color: #64B5F6; font-family: 'DM Mono', monospace; margin-top: 2px; }
   .day-card.today .day-rain { color: #90CAF9; }
-  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 16px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
   .stat-box { background: #f8fafc; border-radius: 12px; padding: 12px; text-align: center; }
-  .stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #aaa; margin-bottom: 4px; }
+  .stat-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #aaa; margin-bottom: 4px; }
   .stat-value { font-size: 22px; font-weight: 800; color: #1a1a2e; }
   .stat-unit { font-size: 10px; color: #aaa; font-weight: 400; }
-  .delta-row { background: white; border-radius: 20px; padding: 20px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+
+  .delta-row { background: white; border-radius: 20px; padding: 20px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .delta-item { text-align: center; }
   .delta-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #aaa; margin-bottom: 8px; }
   .delta-main { font-size: 24px; font-weight: 800; color: #1a1a2e; }
-  .delta-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; font-family: monospace; margin-top: 4px; }
+  .delta-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; font-family: 'DM Mono', monospace; margin-top: 4px; }
   .delta-up { background: #fef3c7; color: #d97706; }
   .delta-down { background: #dbeafe; color: #2563eb; }
   .delta-same { background: #f1f5f9; color: #64748b; }
-  .delta-ly { font-size: 11px; color: #bbb; font-family: monospace; margin-top: 4px; }
+  .delta-ly { font-size: 11px; color: #bbb; font-family: 'DM Mono', monospace; margin-top: 4px; }
+
   .loading { text-align: center; padding: 60px; color: #aaa; font-size: 14px; }
   .spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #1a1a2e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .error { text-align: center; padding: 40px; color: #e53e3e; font-size: 13px; background: white; border-radius: 20px; }
-  .mode-badge { font-size: 10px; background: #f0f4ff; color: #667eea; border-radius: 20px; padding: 3px 10px; font-weight: 700; margin-left: 8px; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -76,24 +80,15 @@
   <div class="location">📍 Merchtem, BE · 50.9597°N 4.2317°E</div>
 </div>
 
-<div class="controls">
+<div class="date-controls">
   <label>From</label>
   <input type="date" id="dateFrom" />
   <label>To</label>
   <input type="date" id="dateTo" />
-  <button class="btn" style="background:#1a1a2e" onclick="loadData()">Load</button>
-  <button class="btn" style="background:#667eea" onclick="setThisWeek()">This Week</button>
-  <button class="btn" style="background:#48bb78" onclick="setThisMonth()">This Month</button>
-  <button class="btn" style="background:#ed8936" onclick="setLast30()">Last 30 Days</button>
-  <button class="btn" style="background:#e53e3e" onclick="setLastWeek()">Last Week</button>
-</div>
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:-8px;padding-left:4px">
-  <span style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase">Match Weekdays</span>
-  <label class="toggle">
-    <input type="checkbox" id="matchToggle" onchange="loadData()">
-    <span class="slider"></span>
-  </label>
-  <span id="lyBadge" style="font-size:10px;background:#f0f4ff;color:#667eea;border-radius:20px;padding:3px 10px;font-weight:700;font-family:monospace"></span>
+  <button class="btn btn-dark" onclick="loadData()">Load</button>
+  <button class="btn btn-blue" onclick="setThisWeek()">This Week</button>
+  <button class="btn btn-green" onclick="setThisMonth()">This Month</button>
+  <button class="btn" style="background:#ed8936;color:white" onclick="setLast30()">Last 30 Days</button>
 </div>
 
 <div id="content">
@@ -105,6 +100,8 @@ const LAT = 50.9597, LON = 4.2317;
 const TZ  = 'Europe%2FBrussels';
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+// Weathercode -> label/emoji. Codes 1 and 2 are split out separately so a
+// "mostly clear" day (1) doesn't get lumped in with "partly cloudy" (2).
 const WMO = code => {
   if (code == 0)  return { label: 'Sunny',         emoji: '☀️' };
   if (code == 1)  return { label: 'Mostly Sunny',  emoji: '🌤️' };
@@ -120,44 +117,22 @@ const WMO = code => {
   return { label: 'Unknown', emoji: '❓' };
 };
 
-const fmt = d => d.toISOString().split('T')[0];
+// Local-date formatter (NOT toISOString, which shifts to UTC and can land
+// on the wrong calendar day depending on time of day / DST).
+const fmt = d => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 const today = () => fmt(new Date());
-const shiftYear = (s, y) => { const d = new Date(s); d.setFullYear(d.getFullYear() + y); return fmt(d); };
-const avgVal = (rows, key) => { const v = rows.map(r=>r[key]).filter(x=>x!==null&&!isNaN(x)); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; };
-const sumVal = (rows, key) => { const v = rows.map(r=>r[key]).filter(x=>x!==null&&!isNaN(x)); return v.length ? v.reduce((a,b)=>a+b,0) : null; };
 
-function getLYRange(from, to) {
-  const matchWeekdays = document.getElementById('matchToggle').checked;
-  if (!matchWeekdays) {
-    const fromDate = new Date(from + 'T12:00:00');
-    const lyApprox = new Date(fromDate);
-    lyApprox.setFullYear(fromDate.getFullYear() - 1);
-    const fromDow = (fromDate.getDay() + 6) % 7;
-    const lyDow   = (lyApprox.getDay() + 6) % 7;
-    let diff = fromDow - lyDow;
-    if (diff > 3)  diff -= 7;
-    if (diff < -3) diff += 7;
-    lyApprox.setDate(lyApprox.getDate() + diff);
-    const spanDays = Math.round((new Date(to+'T12:00:00') - fromDate) / 86400000);
-    const lyEnd = new Date(lyApprox); lyEnd.setDate(lyApprox.getDate() + spanDays);
-    return { lyFrom: fmt(lyApprox), lyTo: fmt(lyEnd) };
-  }
-  const fromDate = new Date(from + 'T12:00:00');
-  const toDate   = new Date(to   + 'T12:00:00');
-  const spanDays = Math.round((toDate - fromDate) / 86400000);
-  const fromDow = (fromDate.getDay() + 6) % 7;
-  const lyApprox = new Date(fromDate);
-  lyApprox.setFullYear(fromDate.getFullYear() - 1);
-  const lyDow = (lyApprox.getDay() + 6) % 7;
-  const lyStart = new Date(lyApprox);
-  let diff = fromDow - lyDow;
-  if (diff > 3)  diff -= 7;
-  if (diff < -3) diff += 7;
-  lyStart.setDate(lyApprox.getDate() + diff);
-  const lyEnd = new Date(lyStart);
-  lyEnd.setDate(lyStart.getDate() + spanDays);
-  return { lyFrom: fmt(lyStart), lyTo: fmt(lyEnd) };
-}
+// Always parse/shift at noon local time to avoid any midnight boundary issues.
+const shiftYear = (s, y) => {
+  const d = new Date(s + 'T12:00:00');
+  d.setFullYear(d.getFullYear() + y);
+  return fmt(d);
+};
 
 function setThisWeek() {
   const t = new Date(), m = new Date(t);
@@ -174,39 +149,32 @@ function setThisMonth() {
   loadData();
 }
 function setLast30() {
-  const t = new Date(), s = new Date(t); s.setDate(t.getDate() - 30);
+  const t = new Date(), s = new Date(t);
+  s.setDate(t.getDate() - 30);
   document.getElementById('dateFrom').value = fmt(s);
   document.getElementById('dateTo').value   = fmt(t);
-  loadData();
-}
-function setLastWeek() {
-  const t = new Date();
-  const dow = (t.getDay() + 6) % 7;
-  const lastMon = new Date(t);
-  lastMon.setDate(t.getDate() - dow - 7);
-  const lastSun = new Date(lastMon);
-  lastSun.setDate(lastMon.getDate() + 6);
-  document.getElementById('dateFrom').value = fmt(lastMon);
-  document.getElementById('dateTo').value   = fmt(lastSun);
   loadData();
 }
 
 async function fetchDaily(start, end) {
   const todayS = today();
-  const yest = fmt(new Date(new Date().setDate(new Date().getDate() - 1)));
   let rows = [];
-  if (start <= yest) {
-    const hEnd = end <= yest ? end : yest;
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${hEnd}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
-    const j = await fetch(url).then(r => r.json());
+
+  const yest = fmt(new Date(new Date().setDate(new Date().getDate() - 1)));
+  const hEndClamp = end <= yest ? end : yest;
+  if (start <= hEndClamp) {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${hEndClamp}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
+    const r = await fetch(url); const j = await r.json();
     if (j.daily) rows = rows.concat(zipDays(j.daily));
   }
+
   if (end >= todayS) {
     const fStart = start >= todayS ? start : todayS;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&timezone=${TZ}`;
-    const j = await fetch(url).then(r => r.json());
+    const r = await fetch(url); const j = await r.json();
     if (j.daily) rows = rows.concat(zipDays(j.daily));
   }
+
   return rows;
 }
 
@@ -223,13 +191,100 @@ function zipDays(d) {
   }));
 }
 
+function avgVal(rows, key) {
+  const v = rows.map(r => r[key]).filter(x => x !== null && !isNaN(x));
+  return v.length ? v.reduce((a,b) => a+b, 0) / v.length : null;
+}
+function sumVal(rows, key) {
+  const v = rows.map(r => r[key]).filter(x => x !== null && !isNaN(x));
+  return v.length ? v.reduce((a,b) => a+b, 0) : null;
+}
+
+function renderDelta(cur, ly, unit, label, emoji) {
+  if (cur === null) return '';
+  const diff = ly !== null ? cur - ly : null;
+  const pct  = (diff !== null && ly !== 0) ? ((diff / Math.abs(ly)) * 100).toFixed(1) : null;
+  const isUp = diff > 0;
+  const badgeClass = diff === 0 ? 'delta-same' : (isUp ? 'delta-up' : 'delta-down');
+  const arrow = isUp ? '▲' : '▼';
+  return `
+    <div class="delta-item">
+      <div class="delta-label">${emoji} ${label}</div>
+      <div class="delta-main">${cur.toFixed(1)}<span style="font-size:14px;font-weight:400;color:#aaa">${unit}</span></div>
+      ${pct !== null ? `<div class="delta-badge ${badgeClass}">${arrow} ${Math.abs(pct)}%</div>` : ''}
+      <div class="delta-ly">LY: ${ly !== null ? ly.toFixed(1) + unit : '—'}</div>
+    </div>`;
+}
+
+function renderPanel(rows, label, rangeStr, isCurrent) {
+  if (!rows.length) return `
+    <div class="panel ${isCurrent ? 'current' : 'ly'}">
+      <div class="panel-year">${isCurrent ? '▶' : '◀'} ${label}</div>
+      <div style="color:#aaa;padding:40px 0;text-align:center;font-size:13px">No data for this period</div>
+    </div>`;
+
+  const todayS = today();
+  const heroRow = isCurrent
+    ? (rows.find(r => r.date === todayS) || rows[rows.length - 1])
+    : rows[Math.floor(rows.length / 2)];
+
+  const wmo = WMO(heroRow.code);
+  const avgT = avgVal(rows, 'temp');
+  const totP = sumVal(rows, 'precip');
+  const totS = sumVal(rows, 'sun');
+
+  const dayCards = rows.map(r => {
+    const d = new Date(r.date + 'T12:00:00');
+    const w = WMO(r.code);
+    const isToday = isCurrent && r.date === todayS;
+    const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return `
+      <div class="day-card ${isToday ? 'today' : ''}">
+        <div class="day-name">${DAYS[d.getDay()]}</div>
+        <div class="day-date">${dateLabel}</div>
+        <div class="day-emoji">${w.emoji}</div>
+        <div class="day-temp">${r.tmax !== null ? Math.round(r.tmax) : Math.round(r.temp)}°</div>
+        <div style="font-size:9px;color:${isToday?'rgba(255,255,255,0.5)':'#aaa'};font-family:monospace">${r.tmin !== null ? Math.round(r.tmin) : ''}°</div>
+        <div class="day-rain">${r.precip > 0 ? r.precip.toFixed(1) + 'mm' : '·'}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="panel ${isCurrent ? 'current' : 'ly'}">
+      <div class="panel-year">${isCurrent ? '▶' : '◀'} ${label} <span style="font-weight:400;color:#ccc;font-size:10px">${rangeStr}</span></div>
+      <div class="hero">
+        <div class="hero-emoji">${wmo.emoji}</div>
+        <div>
+          <div class="hero-temp">${Math.round(heroRow.temp)}°</div>
+          <div class="hero-condition">${wmo.label}</div>
+          <div class="hero-details">🌡️ ${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}° / ${heroRow.tmin !== null ? Math.round(heroRow.tmin) : '—'}° · 💧 ${heroRow.precip.toFixed(1)}mm · 💨 ${heroRow.wind.toFixed(0)}kph · ☀️ ${heroRow.sun}h</div>
+        </div>
+      </div>
+      <div class="day-strip">${dayCards}</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-label">Avg Temp</div>
+          <div class="stat-value">${avgT !== null ? avgT.toFixed(1) : '—'}<span class="stat-unit">°C</span></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Total Rain</div>
+          <div class="stat-value">${totP !== null ? totP.toFixed(1) : '—'}<span class="stat-unit">mm</span></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Sunshine</div>
+          <div class="stat-value">${totS !== null ? totS.toFixed(0) : '—'}<span class="stat-unit">h</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function loadData() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   if (!from || !to) { alert('Please select a date range.'); return; }
 
-  const { lyFrom, lyTo } = getLYRange(from, to);
-  const matchOn = document.getElementById('matchToggle').checked;
+  const lyFrom = shiftYear(from, -1);
+  const lyTo   = shiftYear(to,   -1);
   const curYear = new Date(from).getFullYear();
 
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching weather data...</div>';
@@ -240,83 +295,23 @@ async function loadData() {
       fetchDaily(lyFrom, lyTo)
     ]);
 
-    const badge = document.getElementById('lyBadge');
-    if (badge) badge.textContent = matchOn ? `📅 ${lyFrom} → ${lyTo}` : `📆 ${lyFrom} → ${lyTo}`;
+    const cTemp  = avgVal(curRows, 'temp'),  lTemp  = avgVal(lyRows, 'temp');
+    const cRain  = sumVal(curRows, 'precip'), lRain  = sumVal(lyRows, 'precip');
+    const cSun   = sumVal(curRows, 'sun'),   lSun   = sumVal(lyRows, 'sun');
 
     document.getElementById('content').innerHTML = `
       <div class="columns">
-        ${renderPanel(lyRows,  `${new Date(lyFrom).getFullYear()}`, `${lyFrom} → ${lyTo}`, false)}
-        ${renderPanel(curRows, `${curYear}`, `${from} → ${to}`, true)}
+        ${renderPanel(lyRows,  `${curYear - 1}`, `${lyFrom} → ${lyTo}`,  false)}
+        ${renderPanel(curRows, `${curYear}`,     `${from} → ${to}`,       true)}
       </div>
       <div class="delta-row">
-        ${renderDelta(avgVal(curRows,'temp'),  avgVal(lyRows,'temp'),  '°C','Avg Temperature','🌡️')}
-        ${renderDelta(sumVal(curRows,'precip'),sumVal(lyRows,'precip'),'mm', 'Total Rain',     '🌧️')}
-        ${renderDelta(sumVal(curRows,'sun'),   sumVal(lyRows,'sun'),   'h',  'Sunshine',       '☀️')}
+        ${renderDelta(cTemp, lTemp, '°C', 'Avg Temperature', '🌡️')}
+        ${renderDelta(cRain, lRain, 'mm', 'Total Rain',      '🌧️')}
+        ${renderDelta(cSun,  lSun,  'h',  'Sunshine',        '☀️')}
       </div>`;
   } catch(e) {
     document.getElementById('content').innerHTML = `<div class="error">❌ ${e.message}</div>`;
   }
-}
-
-function renderPanel(rows, label, rangeStr, isCurrent) {
-  if (!rows.length) return `
-    <div class="panel ${isCurrent?'current':'ly'}">
-      <div class="panel-year">${isCurrent?'▶':'◀'} ${label}</div>
-      <div style="color:#aaa;padding:40px 0;text-align:center;font-size:13px">No data</div>
-    </div>`;
-
-  const todayS = today();
-  const heroRow = isCurrent ? (rows.find(r=>r.date===todayS)||rows[rows.length-1]) : rows[Math.floor(rows.length/2)];
-  const wmo = WMO(heroRow.code);
-  const cols = Math.min(rows.length, 7);
-
-  const dayCards = rows.slice(0,14).map(r => {
-    const d = new Date(r.date+'T12:00:00');
-    const w = WMO(r.code);
-    const isToday = isCurrent && r.date === todayS;
-    const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    return `<div class="day-card ${isToday?'today':''}">
-      <div class="day-name">${DAYS[d.getDay()]}</div>
-      <div class="day-date">${dateLabel}</div>
-      <div class="day-emoji">${w.emoji}</div>
-      <div class="day-temp">${r.tmax !== null ? Math.round(r.tmax) : Math.round(r.temp)}°</div>
-      <div style="font-size:9px;color:${isToday?'rgba(255,255,255,0.5)':'#aaa'};font-family:monospace">${r.tmin !== null ? Math.round(r.tmin) : ''}°</div>
-      <div class="day-rain">${r.precip>0?r.precip.toFixed(1)+'mm':'·'}</div>
-    </div>`;
-  }).join('');
-
-  return `
-    <div class="panel ${isCurrent?'current':'ly'}">
-      <div class="panel-year">${isCurrent?'▶':'◀'} ${label} <span style="font-weight:400;color:#ccc;font-size:10px">${rangeStr}</span></div>
-      <div class="hero">
-        <div class="hero-emoji">${wmo.emoji}</div>
-        <div>
-          <div class="hero-temp">${Math.round(heroRow.temp)}°</div>
-          <div class="hero-condition">${wmo.label}</div>
-          <div class="hero-details">🌡️ ${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}° / ${heroRow.tmin !== null ? Math.round(heroRow.tmin) : '—'}° · 💧${heroRow.precip.toFixed(1)}mm · 💨${heroRow.wind.toFixed(0)}kph · ☀️${heroRow.sun}h</div>
-        </div>
-      </div>
-      <div class="day-strip" style="grid-template-columns:repeat(${cols},1fr)">${dayCards}</div>
-      <div class="stats-row">
-        <div class="stat-box"><div class="stat-label">Avg Temp</div><div class="stat-value">${avgVal(rows,'temp')?.toFixed(1)?? '—'}<span class="stat-unit">°C</span></div></div>
-        <div class="stat-box"><div class="stat-label">Total Rain</div><div class="stat-value">${sumVal(rows,'precip')?.toFixed(1)?? '—'}<span class="stat-unit">mm</span></div></div>
-        <div class="stat-box"><div class="stat-label">Sunshine</div><div class="stat-value">${sumVal(rows,'sun')?.toFixed(0)?? '—'}<span class="stat-unit">h</span></div></div>
-      </div>
-    </div>`;
-}
-
-function renderDelta(cur, ly, unit, label, emoji) {
-  if (cur===null) return '';
-  const diff = ly!==null ? cur-ly : null;
-  const pct  = (diff!==null&&ly!==0) ? ((diff/Math.abs(ly))*100).toFixed(1) : null;
-  const isUp = diff>0;
-  const cls  = diff===0?'delta-same':isUp?'delta-up':'delta-down';
-  return `<div class="delta-item">
-    <div class="delta-label">${emoji} ${label}</div>
-    <div class="delta-main">${cur.toFixed(1)}<span style="font-size:14px;font-weight:400;color:#aaa">${unit}</span></div>
-    ${pct!==null?`<div class="delta-badge ${cls}">${isUp?'▲':'▼'} ${Math.abs(pct)}%</div>`:''}
-    <div class="delta-ly">LY: ${ly!==null?ly.toFixed(1)+unit:'—'}</div>
-  </div>`;
 }
 
 window.onload = () => setThisWeek();
