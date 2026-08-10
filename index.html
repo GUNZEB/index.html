@@ -323,7 +323,7 @@ function renderPanel(rows, label, rangeStr, isCurrent) {
       <div class="hero">
         <div class="hero-emoji">${wmo.emoji}</div>
         <div>
-          <div class="hero-temp">${Math.round(heroRow.temp)}°</div>
+          <div class="hero-temp">${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}°</div>
           <div class="hero-condition">${wmo.label}</div>
           <div class="hero-details">🌡️ ${heroRow.tmax !== null ? Math.round(heroRow.tmax) : Math.round(heroRow.temp)}° / ${heroRow.tmin !== null ? Math.round(heroRow.tmin) : '—'}° · 💧 ${heroRow.precip.toFixed(1)}mm · 💨 ${heroRow.wind.toFixed(0)}kph · ☀️ ${heroRow.sun}h</div>
         </div>
