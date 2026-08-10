@@ -205,13 +205,35 @@ async function fetchDaily(start, end) {
 
   if (end >= todayS) {
     const fStart = start >= todayS ? start : todayS;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&current_weather=true&timezone=${TZ}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${fStart}&end_date=${end}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunshine_duration&hourly=cloudcover&current_weather=true&timezone=${TZ}`;
     const r = await fetch(url); const j = await r.json();
     if (j.daily) rows = rows.concat(zipDays(j.daily));
-    if (j.current_weather) current = j.current_weather; // { temperature, weathercode, windspeed, time }
+    if (j.current_weather) {
+      current = j.current_weather; // { temperature, weathercode, windspeed, time, ... }
+      // Match the current hour's cloud cover % for a finer-grained icon than weathercode alone gives us
+      if (j.hourly && j.hourly.time) {
+        const idx = j.hourly.time.indexOf(current.time);
+        if (idx !== -1) current.cloudcover = j.hourly.cloudcover[idx];
+      }
+    }
   }
 
   return { rows, current };
+}
+
+// Weathercode 0-3 only distinguishes 4 coarse sky states and tips into "overcast"
+// past ~50% cloud cover — much more eager than how Google/most apps label things.
+// For the live "now" reading we have real cloud-cover %, so use that for a
+// smoother gradient instead. Precipitation/fog/storm codes (4+) are left as-is,
+// since those aren't about cloud amount.
+function liveIcon(code, cloudcover) {
+  if (code <= 3 && cloudcover !== undefined && cloudcover !== null) {
+    if (cloudcover <= 15) return { label: 'Clear',         emoji: '☀️' };
+    if (cloudcover <= 40) return { label: 'Mostly Sunny',  emoji: '🌤️' };
+    if (cloudcover <= 70) return { label: 'Partly Cloudy', emoji: '⛅' };
+    return { label: 'Cloudy', emoji: '☁️' };
+  }
+  return WMO(code);
 }
 
 function zipDays(d) {
@@ -268,7 +290,7 @@ function renderPanel(rows, label, rangeStr, isCurrent, current = null) {
   // aggregate code — the daily code can reflect e.g. morning cloud even when
   // it's sunny right now, which made today's card look more overcast than reality.
   const heroIsLive = isCurrent && current && heroRow.date === todayS;
-  const wmo = WMO(heroIsLive ? current.weathercode : heroRow.code);
+  const wmo = heroIsLive ? liveIcon(current.weathercode, current.cloudcover) : WMO(heroRow.code);
   const heroTemp = heroIsLive ? current.temperature : heroRow.temp;
 
   const avgT = avgVal(rows, 'temp');
@@ -278,7 +300,7 @@ function renderPanel(rows, label, rangeStr, isCurrent, current = null) {
   const dayCards = rows.map(r => {
     const d = new Date(r.date + 'T12:00:00');
     const isToday = isCurrent && r.date === todayS;
-    const w = (isToday && current) ? WMO(current.weathercode) : WMO(r.code);
+    const w = (isToday && current) ? liveIcon(current.weathercode, current.cloudcover) : WMO(r.code);
     const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `
       <div class="day-card ${isToday ? 'today' : ''}">
