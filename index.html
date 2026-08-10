@@ -107,7 +107,8 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 const WMO = code => {
   if (code == 0)  return { label: 'Sunny',         emoji: '☀️' };
-  if (code <= 2)  return { label: 'Partly Cloudy', emoji: '⛅' };
+  if (code == 1)  return { label: 'Mostly Sunny',  emoji: '🌤️' };
+  if (code == 2)  return { label: 'Partly Cloudy', emoji: '⛅' };
   if (code == 3)  return { label: 'Cloudy',        emoji: '☁️' };
   if (code <= 49) return { label: 'Foggy',         emoji: '🌫️' };
   if (code <= 59) return { label: 'Drizzle',       emoji: '🌦️' };
