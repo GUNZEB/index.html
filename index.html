@@ -210,9 +210,12 @@ async function fetchDaily(start, end) {
     if (j.daily) rows = rows.concat(zipDays(j.daily));
     if (j.current_weather) {
       current = j.current_weather; // { temperature, weathercode, windspeed, time, ... }
-      // Match the current hour's cloud cover % for a finer-grained icon than weathercode alone gives us
+      // current_weather.time can fall mid-hour (e.g. "...T15:30"), which never
+      // exact-matches hourly.time's on-the-hour entries ("...T15:00") — match
+      // by truncating to the hour instead of a full string compare.
       if (j.hourly && j.hourly.time) {
-        const idx = j.hourly.time.indexOf(current.time);
+        const hourKey = current.time.slice(0, 13) + ':00';
+        const idx = j.hourly.time.indexOf(hourKey);
         if (idx !== -1) current.cloudcover = j.hourly.cloudcover[idx];
       }
     }
